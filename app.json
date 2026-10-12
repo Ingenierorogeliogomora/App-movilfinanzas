@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "Salda",
+    "slug": "salda",
+    "scheme": "salda",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "description": "Get out of debt, understand your spending and build a budget. Private, bilingual (Spanish/English) and works offline.",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.salda.finanzas",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "CFBundleAllowMixedLocalizations": true,
+        "LSSupportsOpeningDocumentsInPlace": false
+      }
+    },
+    "android": {
+      "package": "com.salda.finanzas",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": []
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "locales": {
+      "es": "./locales/es.json",
+      "en": "./locales/en.json"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-localization",
+      "expo-sharing",
+      "expo-status-bar",
+      "@react-native-community/datetimepicker"
+    ],
+    "experiments": {
+      "tsconfigPaths": true
+    }
+  }
+}
