@@ -1,8 +1,6 @@
-import * as DocumentPicker from 'expo-document-picker';
-import { File } from 'expo-file-system';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Platform, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 
 import { categorize } from '@/core/categorize';
 import {
@@ -16,6 +14,7 @@ import {
 } from '@/core/csv';
 import { formatDate } from '@/core/dates';
 import type { PaymentMethod } from '@/core/types';
+import { pickTextFile } from '@/data/files';
 import { useI18n } from '@/i18n';
 import { useCategoryMap } from '@/state/derived';
 import { useStore, type NewTransaction } from '@/state/store';
@@ -47,17 +46,11 @@ export default function ImportScreen() {
 
   const pick = async () => {
     setError(null);
-    const res = await DocumentPicker.getDocumentAsync({
-      type: Platform.OS === 'web' ? '.csv,text/csv,text/plain' : '*/*',
-      copyToCacheDirectory: true,
-      multiple: false,
-    });
-    if (res.canceled || !res.assets?.[0]) return;
-    setPhase('loading');
     try {
-      const asset = res.assets[0];
-      // On web the picker hands back a browser File; on iOS/Android a local copy.
-      const text = asset.file ? await asset.file.text() : await new File(asset.uri).text();
+      const file = await pickTextFile('.csv,text/csv,text/plain');
+      if (!file) return;
+      setPhase('loading');
+      const text = file.text;
       const usesMonthFirst = /-(US|PH|CA)$/.test(locale);
       const a = analyzeCSV(text, usesMonthFirst ? 'MDY' : 'DMY');
       if (!a.mapping) throw new Error('unrecognized');

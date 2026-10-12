@@ -4,7 +4,7 @@ import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { budgetStatuses, categorySpikes } from '@/core/analytics';
-import { addMonths, currentMonthKey, formatDate, formatMonthLabel, todayISO } from '@/core/dates';
+import { addMonths, currentMonthKey, daysBetween, formatDate, formatMonthLabel, todayISO } from '@/core/dates';
 import { debtTotals, healthScore } from '@/core/health';
 import { buildInsights } from '@/core/insights';
 import { upcomingOccurrences } from '@/core/recurring';
@@ -41,6 +41,7 @@ export default function Home() {
   const recurring = useStore((s) => s.recurring);
   const budgets = useStore((s) => s.budgets);
   const emergencyFund = useStore((s) => s.settings.emergencyFund);
+  const lastBackupAt = useStore((s) => s.settings.lastBackupAt);
   const markPaid = useStore((s) => s.markRecurringPaid);
 
   const summary = useMonthSummary(month);
@@ -64,8 +65,10 @@ export default function Home() {
         budgets: budgetList,
         spikes: categorySpikes(summary, trend.slice(0, -1)),
         uncategorizedCount,
+        transactionCount: transactions.length,
+        daysSinceBackup: lastBackupAt ? daysBetween(lastBackupAt.slice(0, 10), today) : null,
       }),
-    [summary, debts, budgetList, trend, uncategorizedCount],
+    [summary, debts, budgetList, trend, uncategorizedCount, transactions.length, lastBackupAt, today],
   );
   const health = healthScore({
     income: averages.income,
@@ -213,7 +216,11 @@ export default function Home() {
             {insights.slice(0, 6).map((ins, i) => {
               const color = { danger: c.danger, warning: c.warning, info: c.info, success: c.success }[ins.severity];
               return (
-                <Card key={`${ins.kind}-${i}`} tone={ins.severity}>
+                <Card
+                  key={`${ins.kind}-${i}`}
+                  tone={ins.severity}
+                  onPress={ins.kind === 'backup_due' ? () => router.push('/backup') : undefined}
+                >
                   <Row gap={spacing.md} align="flex-start">
                     <Icon name={SEVERITY_ICON[ins.severity]} color={color} />
                     <Txt style={{ flex: 1 }}>{insightText(ins, i18n, categories)}</Txt>

@@ -1,6 +1,5 @@
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect, useState } from 'react';
-import { Alert } from 'react-native';
 
 import { todayISO } from '@/core/dates';
 import { centsToInput, parseAmount } from '@/core/money';
@@ -11,6 +10,7 @@ import { spacing } from '@/theme';
 import { DateField, Field, MoneyField, SwitchRow, TextField } from '@/ui/fields';
 import { CategoryPicker, MethodPicker } from '@/ui/pickers';
 import { Button, Card, ChipGroup, Row, Screen, Segmented } from '@/ui/primitives';
+import { confirmAsync } from '@/ui/dialogs';
 import { goBack } from '@/ui/nav';
 
 export default function RecurringForm() {
@@ -56,19 +56,18 @@ export default function RecurringForm() {
     goBack();
   };
 
-  const remove = () => {
+  const remove = async () => {
     if (!existing) return;
-    Alert.alert(t('common.deleteConfirmTitle'), t('common.deleteConfirmBody'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('common.delete'),
-        style: 'destructive',
-        onPress: async () => {
-          await deleteRecurring(existing.id);
-          goBack();
-        },
-      },
-    ]);
+    const ok = await confirmAsync({
+      title: t('common.deleteConfirmTitle'),
+      message: t('common.deleteConfirmBody'),
+      confirmText: t('common.delete'),
+      cancelText: t('common.cancel'),
+      destructive: true,
+    });
+    if (!ok) return;
+    await deleteRecurring(existing.id);
+    goBack();
   };
 
   return (
@@ -110,7 +109,7 @@ export default function RecurringForm() {
         </Card>
       ) : null}
       <Row gap={spacing.md}>
-        {existing ? <Button title={t('common.delete')} variant="danger" onPress={remove} style={{ flex: 1 }} /> : null}
+        {existing ? <Button title={t('common.delete')} variant="danger" onPress={() => void remove()} style={{ flex: 1 }} /> : null}
         <Button title={t('common.save')} onPress={() => void save()} style={{ flex: 2 }} />
       </Row>
     </Screen>

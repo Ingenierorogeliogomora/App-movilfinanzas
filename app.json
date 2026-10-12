@@ -43,7 +43,20 @@
       "expo-localization",
       "expo-sharing",
       "expo-status-bar",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#4338CA"
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Salda uses Face ID to protect your financial information."
+        }
+      ]
     ],
     "experiments": {
       "tsconfigPaths": true

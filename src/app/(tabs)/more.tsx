@@ -1,11 +1,11 @@
 import { router, type Href } from 'expo-router';
-import { Alert } from 'react-native';
 
 import { exportTransactionsCsv } from '@/data/exportCsv';
 import { useI18n, type TKey } from '@/i18n';
 import { useCategoryMap } from '@/state/derived';
 import { useStore } from '@/state/store';
 import { useTheme } from '@/theme';
+import { notify } from '@/ui/dialogs';
 import { Card, Divider, ListItem, Screen, Txt } from '@/ui/primitives';
 
 const ITEMS: { icon: string; title: TKey; hint: TKey; href: Href }[] = [
@@ -14,6 +14,7 @@ const ITEMS: { icon: string; title: TKey; hint: TKey; href: Href }[] = [
   { icon: 'wallet-outline', title: 'more.budgets', hint: 'more.budgetsHint', href: '/budgets' },
   { icon: 'cloud-upload-outline', title: 'more.import', hint: 'more.importHint', href: '/import' },
   { icon: 'pricetags-outline', title: 'more.categories', hint: 'more.categoriesHint', href: '/categories' },
+  { icon: 'shield-checkmark-outline', title: 'more.backup', hint: 'more.backupHint', href: '/backup' },
 ];
 
 export default function More() {
@@ -27,7 +28,7 @@ export default function More() {
     try {
       await exportTransactionsCsv(transactions, categories, debts, categoryName);
     } catch {
-      Alert.alert(t('common.error'));
+      notify(t('common.error'));
     }
   };
 

@@ -57,6 +57,7 @@ Este es el "orden de operaciones" que usamos los planificadores. La pantalla **M
 |---|---|---|
 | Día 1 | Instala, elige idioma y moneda. Agrega **todas** tus deudas con saldo, APR y pago mínimo (están en tu último estado de cuenta). | Deudas → + |
 | Día 1 | Agrega la renta (efectivo) y tus otros gastos fijos: luz, internet, teléfono, seguros, suscripciones. | Más → Gastos fijos |
+| Día 1 | Activa los **recordatorios de pago** (1 o 3 días antes) para no volver a pagar recargos por atraso, y el **bloqueo con Face ID/huella**. | Ajustes |
 | Días 2-3 | Descarga en CSV los últimos 3 meses de cada tarjeta y cuenta. Impórtalos. | Más → Importar |
 | Días 3-4 | Revisa los movimientos "Sin categoría" y corrígelos. La app **aprende** cada comercio. | Movimientos → Sin categoría |
 | Día 5 | Revisa **Análisis**: ¿cuánto se va en gastos variables? ¿cuánto en intereses y comisiones? ¿qué porcentaje pagas con tarjeta de crédito? | Análisis |
@@ -77,6 +78,7 @@ Este es el "orden de operaciones" que usamos los planificadores. La pantalla **M
 2. Actualiza el saldo real de cada deuda con tu estado de cuenta (Deudas → Pagar → Actualizar saldo); incluye intereses y compras nuevas.
 3. Revisa Análisis: fijos vs. variables, regla 50/30/20 y cuánto pagaste en intereses.
 4. Ajusta presupuestos y, si te sobró dinero, súbelo al pago extra.
+5. Crea un **respaldo** y guárdalo en tu iCloud Drive o Google Drive personal (Más → Respaldo y restauración).
 
 **Cada año:** revisa seguros, renegocia internet y teléfono, revisa tu reporte de crédito gratis en annualcreditreport.com.
 

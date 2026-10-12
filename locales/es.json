@@ -1,6 +1,7 @@
 {
   "ios": {
-    "CFBundleDisplayName": "Salda"
+    "CFBundleDisplayName": "Salda",
+    "NSFaceIDUsageDescription": "Salda usa Face ID para proteger tu información financiera."
   },
   "android": {
     "app_name": "Salda"

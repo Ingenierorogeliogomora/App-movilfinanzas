@@ -1,6 +1,5 @@
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect, useState } from 'react';
-import { Alert } from 'react-native';
 
 import { todayISO } from '@/core/dates';
 import { suggestedCardMinimum } from '@/core/debt';
@@ -11,6 +10,7 @@ import { useStore } from '@/state/store';
 import { spacing } from '@/theme';
 import { Field, MoneyField, TextField } from '@/ui/fields';
 import { Button, ChipGroup, Row, Screen } from '@/ui/primitives';
+import { confirmAsync } from '@/ui/dialogs';
 import { goBack } from '@/ui/nav';
 
 export default function DebtForm() {
@@ -77,19 +77,18 @@ export default function DebtForm() {
     goBack();
   };
 
-  const remove = () => {
+  const remove = async () => {
     if (!existing) return;
-    Alert.alert(t('common.deleteConfirmTitle'), t('common.deleteConfirmBody'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('common.delete'),
-        style: 'destructive',
-        onPress: async () => {
-          await deleteDebt(existing.id);
-          goBack();
-        },
-      },
-    ]);
+    const ok = await confirmAsync({
+      title: t('common.deleteConfirmTitle'),
+      message: t('common.deleteConfirmBody'),
+      confirmText: t('common.delete'),
+      cancelText: t('common.cancel'),
+      destructive: true,
+    });
+    if (!ok) return;
+    await deleteDebt(existing.id);
+    goBack();
   };
 
   return (
@@ -133,7 +132,7 @@ export default function DebtForm() {
         <MoneyField label={t('debt.originalBalance')} value={original} onChangeText={setOriginal} />
       ) : null}
       <Row gap={spacing.md}>
-        {existing ? <Button title={t('common.delete')} variant="danger" onPress={remove} style={{ flex: 1 }} /> : null}
+        {existing ? <Button title={t('common.delete')} variant="danger" onPress={() => void remove()} style={{ flex: 1 }} /> : null}
         <Button title={t('common.save')} onPress={() => void save()} style={{ flex: 2 }} />
       </Row>
     </Screen>

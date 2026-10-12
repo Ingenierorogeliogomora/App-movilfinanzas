@@ -1,10 +1,9 @@
-import { File, Paths } from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
-
 import { toCSV } from '@/core/csv';
 import type { Category, Debt, Transaction } from '@/core/types';
 
-/** Writes every transaction to a CSV in the cache folder and opens the share sheet. */
+import { saveTextFile } from './files';
+
+/** Exports every transaction as CSV through the share sheet (or a download on web). */
 export async function exportTransactionsCsv(
   transactions: Transaction[],
   categories: Map<string, Category>,
@@ -25,11 +24,6 @@ export async function exportTransactionsCsv(
       t.debtId ? (debtNames.get(t.debtId) ?? '') : '',
     ]),
   ];
-  const file = new File(Paths.cache, `salda-transactions-${new Date().toISOString().slice(0, 10)}.csv`);
-  if (file.exists) file.delete();
-  file.create();
-  file.write(toCSV(rows));
-  if (!(await Sharing.isAvailableAsync())) return false;
-  await Sharing.shareAsync(file.uri, { mimeType: 'text/csv', dialogTitle: 'Salda CSV', UTI: 'public.comma-separated-values-text' });
-  return true;
+  const name = `salda-transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+  return saveTextFile(name, toCSV(rows), 'text/csv', 'public.comma-separated-values-text');
 }

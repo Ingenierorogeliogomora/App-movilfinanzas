@@ -13,7 +13,12 @@ export type Insight =
   | { kind: 'category_spike'; severity: 'info'; categoryId: string | null; amount: number; average: number }
   | { kind: 'uncategorized'; severity: 'info'; count: number }
   | { kind: 'fees_paid'; severity: 'warning'; amount: number }
-  | { kind: 'positive_month'; severity: 'success'; net: number; savingsRate: number };
+  | { kind: 'positive_month'; severity: 'success'; net: number; savingsRate: number }
+  | { kind: 'backup_due'; severity: 'info'; days: number | null };
+
+/** Suggest a backup once there is real data and none was made in this many days. */
+export const BACKUP_REMINDER_DAYS = 30;
+const BACKUP_MIN_TRANSACTIONS = 30;
 
 export interface InsightInput {
   summary: MonthSummary;
@@ -21,6 +26,10 @@ export interface InsightInput {
   budgets: BudgetStatus[];
   spikes: { categoryId: string | null; amount: number; average: number }[];
   uncategorizedCount: number;
+  /** Total transactions stored (backup nudges only make sense with real data). */
+  transactionCount?: number;
+  /** Days since the last backup, or null if there never was one. */
+  daysSinceBackup?: number | null;
 }
 
 export function buildInsights(input: InsightInput): Insight[] {
@@ -65,6 +74,12 @@ export function buildInsights(input: InsightInput): Insight[] {
   }
   if (input.uncategorizedCount > 0) {
     out.push({ kind: 'uncategorized', severity: 'info', count: input.uncategorizedCount });
+  }
+  if (
+    (input.transactionCount ?? 0) >= BACKUP_MIN_TRANSACTIONS &&
+    (input.daysSinceBackup == null || input.daysSinceBackup > BACKUP_REMINDER_DAYS)
+  ) {
+    out.push({ kind: 'backup_due', severity: 'info', days: input.daysSinceBackup ?? null });
   }
   if (input.summary.income > 0 && input.summary.net > 0 && input.summary.savingsRate !== null) {
     out.push({ kind: 'positive_month', severity: 'success', net: input.summary.net, savingsRate: input.summary.savingsRate });

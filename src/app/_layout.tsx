@@ -1,13 +1,19 @@
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import * as Notifications from 'expo-notifications';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider, router } from 'expo-router';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { DB_NAME, migrateDb } from '@/data/db';
+import { configureNotifications, remindersSupported } from '@/data/notifications';
 import { useI18n } from '@/i18n';
+import { useReminderSync } from '@/state/useReminderSync';
 import { useStore } from '@/state/store';
 import { useIsDark, useTheme } from '@/theme';
+import { LockGate } from '@/ui/LockGate';
+
+configureNotifications();
 
 export default function RootLayout() {
   return (
@@ -79,11 +85,30 @@ function Navigator() {
           <Stack.Screen name="import" options={{ title: t('import.title') }} />
           <Stack.Screen name="categories" options={{ title: t('categories.title') }} />
           <Stack.Screen name="settings" options={{ title: t('settings.title') }} />
+          <Stack.Screen name="backup" options={{ title: t('backup.title') }} />
         </Stack.Protected>
         <Stack.Protected guard={!onboarded}>
           <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         </Stack.Protected>
       </Stack>
+      {/* Always mounted so turning reminders off (or wiping data) cancels them. */}
+      <Background />
+      <LockGate />
     </ThemeProvider>
   );
+}
+
+/** Work that runs while the app is open: reminders and opening a tapped reminder. */
+function Background() {
+  useReminderSync();
+  return remindersSupported ? <OpenTappedReminder /> : null;
+}
+
+function OpenTappedReminder() {
+  const response = Notifications.useLastNotificationResponse();
+  useEffect(() => {
+    const url = response?.notification.request.content.data?.url;
+    if (typeof url === 'string' && (url === '/recurring' || url === '/debts')) router.push(url);
+  }, [response]);
+  return null;
 }

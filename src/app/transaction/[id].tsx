@@ -1,6 +1,5 @@
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect, useState } from 'react';
-import { Alert } from 'react-native';
 
 import { todayISO } from '@/core/dates';
 import { centsToInput, parseAmount } from '@/core/money';
@@ -11,6 +10,7 @@ import { spacing } from '@/theme';
 import { DateField, Field, MoneyField, SwitchRow, TextField } from '@/ui/fields';
 import { CategoryPicker, MethodPicker } from '@/ui/pickers';
 import { Button, Card, Row, Screen, Segmented, Txt } from '@/ui/primitives';
+import { confirmAsync, notify } from '@/ui/dialogs';
 import { goBack } from '@/ui/nav';
 
 export default function TransactionForm() {
@@ -64,29 +64,28 @@ export default function TransactionForm() {
       });
       if (categoryChanged && learn && tx.description) {
         const count = await learnCategory(tx.id, type === 'transfer' ? null : categoryId, type, true);
-        if (count > 1) Alert.alert(t('tx.updatedSimilar', { count }));
+        if (count > 1) notify(t('tx.updatedSimilar', { count }));
       }
       goBack();
     } catch {
-      Alert.alert(t('common.error'));
+      notify(t('common.error'));
     } finally {
       setSaving(false);
     }
   };
 
-  const remove = () => {
+  const remove = async () => {
     if (!existing) return;
-    Alert.alert(t('common.deleteConfirmTitle'), t('common.deleteConfirmBody'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('common.delete'),
-        style: 'destructive',
-        onPress: async () => {
-          await deleteTransaction(existing.id);
-          goBack();
-        },
-      },
-    ]);
+    const ok = await confirmAsync({
+      title: t('common.deleteConfirmTitle'),
+      message: t('common.deleteConfirmBody'),
+      confirmText: t('common.delete'),
+      cancelText: t('common.cancel'),
+      destructive: true,
+    });
+    if (!ok) return;
+    await deleteTransaction(existing.id);
+    goBack();
   };
 
   return (
@@ -142,7 +141,7 @@ export default function TransactionForm() {
       <TextField label={`${t('tx.note')} (${t('common.optional')})`} value={note} onChangeText={setNote} multiline />
 
       <Row gap={spacing.md}>
-        {existing ? <Button title={t('common.delete')} variant="danger" onPress={remove} style={{ flex: 1 }} /> : null}
+        {existing ? <Button title={t('common.delete')} variant="danger" onPress={() => void remove()} style={{ flex: 1 }} /> : null}
         <Button title={t('common.save')} onPress={() => void save()} loading={saving} style={{ flex: 2 }} />
       </Row>
     </Screen>

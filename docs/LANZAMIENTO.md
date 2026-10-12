@@ -32,7 +32,8 @@ Esta guía cubre producto, monetización, requisitos de las tiendas y los pasos 
 | Análisis | Mes actual | 12 meses, tendencias, comercios |
 | Presupuestos | 3 categorías | Ilimitados + sugerencia automática |
 | Exportar datos | — | ✅ |
-| Próximo: recordatorios, respaldo en la nube, widgets | — | ✅ |
+| Recordatorios de pago, bloqueo con Face ID, respaldo manual | ✅ | ✅ |
+| Próximo: respaldo automático en la nube, widgets | — | ✅ |
 
 **Precio sugerido para probar:** $4.99/mes o $29.99/año con 7 días de prueba gratis; opción "de por vida" (~$59.99) para quien no quiere suscripciones. Haz pruebas A/B de precio después de las primeras 500 descargas.
 
@@ -50,7 +51,7 @@ Esta guía cubre producto, monetización, requisitos de las tiendas y los pasos 
 
 ### Privacidad (obligatorio en ambas)
 - **URL pública de política de privacidad.** Usa `docs/PRIVACY_POLICY.md` como base (revísala con un abogado) y publícala, por ejemplo con GitHub Pages.
-- **Apple – App Privacy ("nutrition label"):** la versión actual no recopila datos fuera del dispositivo, así que corresponde **"Data Not Collected"**. Si agregas analítica, crash reporting o RevenueCat, actualízalo.
+- **Apple – App Privacy ("nutrition label"):** la versión actual no recopila datos fuera del dispositivo, así que corresponde **"Data Not Collected"**. Los recordatorios son notificaciones *locales* (no hay servidor de push) y Face ID lo maneja el sistema: la app nunca recibe datos biométricos. Si agregas analítica, crash reporting o RevenueCat, actualízalo.
 - **Google – Data safety:** declara que no se recopilan ni comparten datos, que los datos no salen del dispositivo y que el usuario puede borrarlos (Ajustes → Borrar todos mis datos).
 - **Google – Financial features declaration:** en Play Console → Contenido de la app, declara que la app es de **"gestión de finanzas personales / presupuesto"** y que **no** ofrece préstamos, inversión ni transferencias de dinero.
 
@@ -108,8 +109,9 @@ npx eas-cli@latest update --branch production --message "Corrige X"
 
 | Versión | Funciones | Por qué |
 |---|---|---|
-| **1.0 (este repositorio)** | Movimientos, importación CSV con auto-categorización y reglas aprendidas, plan de deudas, gastos fijos con detección de suscripciones, presupuestos, análisis, plan CFP, puntaje de salud, ES/EN, modo oscuro | Producto mínimo completo y privado |
-| 1.1 | **Recordatorios de pago** (`expo-notifications`), **bloqueo con Face ID/huella** (`expo-local-authentication`), **respaldo y restauración** (archivo cifrado en iCloud/Google Drive), widgets | Seguridad y retención; sin respaldo, cambiar de teléfono hoy implica perder datos |
+| 1.0 | Movimientos, importación CSV con auto-categorización y reglas aprendidas, plan de deudas, gastos fijos con detección de suscripciones, presupuestos, análisis, plan CFP, puntaje de salud, ES/EN, modo oscuro | Producto mínimo completo y privado |
+| **1.1 (este repositorio)** | **Recordatorios de pago** (notificaciones locales), **bloqueo con Face ID/huella/código**, **respaldo y restauración** con validación, avisos en web con diálogos del navegador | Seguridad y retención |
+| 1.1.x | Respaldo cifrado con contraseña, respaldo automático (iCloud/Google Drive), widgets | Comodidad y privacidad |
 | 1.2 | Suscripción Pro con RevenueCat, metas de ahorro, varias cuentas, importación de OFX/QFX | Ingresos |
 | 2.0 | Sincronización bancaria opcional (Plaid/MX/Teller), cuentas de usuario con sincronización cifrada | Comodidad; implica backend, costos por conexión, revisión de seguridad y la obligación de permitir borrar la cuenta desde la app |
 | 2.x | Lectura de recibos, asistente de IA (con consentimiento explícito), reporte de crédito | Diferenciación |
@@ -132,5 +134,7 @@ npx eas-cli@latest update --branch production --message "Corrige X"
 - [ ] Diseñar el ícono y la pantalla de inicio (splash) definitivos.
 - [ ] Publicar la política de privacidad y los términos de uso.
 - [ ] Probar en dispositivos reales con CSV de tus propios bancos (iPhone y Android), incluyendo la importación desde la app Archivos/Drive.
-- [ ] Implementar respaldo y restauración (v1.1) o advertirlo claramente en la ficha.
+- [x] Respaldo y restauración manual (v1.1). Pendiente: cifrado con contraseña y respaldo automático.
+- [ ] Probar en dispositivo real: recordatorios (permiso de notificaciones en iOS y Android 13+), Face ID / huella, y respaldo → restaurar en otro teléfono.
+- [ ] Nota técnica: el plugin de `expo-notifications` agrega el permiso de push (`aps-environment`) en iOS; EAS lo configura automáticamente al firmar. Para Android, el ícono de notificación usa `assets/android-icon-monochrome.png` (debe ser blanco sobre transparente en el ícono final).
 - [ ] Revisión legal del aviso y la política de privacidad.

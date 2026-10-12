@@ -26,6 +26,9 @@ App móvil (iOS y Android) de finanzas personales, **bilingüe (español/inglés
 | **Presupuestos** | Límite mensual por categoría, sugerencia automática con tus últimos 3 meses, ingreso sin asignar. |
 | **Análisis** | Flujo de efectivo, tasa de ahorro, tendencia de 6 meses, gastos por categoría, **fijos vs. variables**, regla **50/30/20**, cómo pagas, dónde más gastas e intereses pagados en 12 meses. |
 | **Mi plan** | Orden de prioridades de un planificador financiero (registrar → presupuesto → fondo inicial → no más deuda → deuda cara → fondo completo → retiro), puntaje de salud financiera de 0 a 100 y estrategias (negociar APR, transferencia de saldo, consolidación, asesoría sin fines de lucro). |
+| **Recordatorios** | Notificaciones locales antes de que venzan tus gastos fijos y el pago de cada deuda (mismo día, 1, 3 o 7 días antes, a la hora que elijas). Se reprograman solas cuando cambian tus datos. |
+| **Seguridad** | Bloqueo con Face ID, huella o código del teléfono; oculta tus datos en el selector de apps. |
+| **Respaldo** | Archivo de respaldo con todos tus datos para cambiar de teléfono o recuperarlos; la restauración valida y limpia el archivo antes de reemplazar nada. Aviso en Inicio si llevas más de 30 días sin respaldar. |
 | **General** | Español/inglés, modo oscuro, varias monedas, exportación CSV, borrar todos los datos y aviso legal. |
 
 ## Tecnología
@@ -46,6 +49,8 @@ src/
     health.ts       Puntaje de salud financiera
     plan.ts         Pasos del plan financiero
     insights.ts     Alertas en lenguaje simple
+    reminders.ts    Qué recordatorios programar y cuándo
+    backup.ts       Formato del respaldo, validación y limpieza al restaurar
   data/        SQLite: esquema, migraciones, repositorio y exportación
   state/       Store (zustand) y selectores derivados
   i18n/        Diccionarios es/en y formato de moneda y fechas

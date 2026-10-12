@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 
 import { budgetStatuses, suggestBudgets, summarizeMonths } from '@/core/analytics';
 import { addMonthsToKey, currentMonthKey, lastNMonths, todayISO } from '@/core/dates';
@@ -8,6 +8,7 @@ import { useI18n } from '@/i18n';
 import { useAverages, useCategoryIndex, useMonthSummary } from '@/state/derived';
 import { useStore } from '@/state/store';
 import { spacing, useTheme } from '@/theme';
+import { notify } from '@/ui/dialogs';
 import { MoneyField } from '@/ui/fields';
 import { Button, Card, CategoryIcon, Divider, ProgressBar, Row, Screen, StatBlock, Txt } from '@/ui/primitives';
 
@@ -40,12 +41,12 @@ export default function Budgets() {
     let list = suggestBudgets(summarizeMonths(transactions, idx, lastNMonths(addMonthsToKey(month, -1), 3)), idx);
     if (!list.length) list = suggestBudgets([summary], idx);
     if (!list.length) {
-      Alert.alert(t('budget.noHistory'));
+      notify(t('budget.noHistory'));
       return;
     }
     await setBudgets(list);
     setTexts((prev) => ({ ...prev, ...Object.fromEntries(list.map((b) => [b.categoryId, centsToInput(b.amount)])) }));
-    Alert.alert(t('budget.suggested'));
+    notify(t('budget.suggested'));
   };
 
   return (

@@ -23,6 +23,8 @@ export function insightText(i: Insight, { t, money, pct, categoryName }: I18n, c
       return t('insight.fees_paid', { amount: money(i.amount) });
     case 'positive_month':
       return t('insight.positive_month', { amount: money(i.net), pct: pct(i.savingsRate) });
+    case 'backup_due':
+      return t('insight.backup_due');
   }
 }
 

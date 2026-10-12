@@ -2,6 +2,7 @@
 
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import type { BackupData } from '@/core/backup';
 import type {
   Budget,
   Category,
@@ -272,5 +273,36 @@ export async function wipeAll(db: SQLiteDatabase): Promise<void> {
       DELETE FROM settings;
     `);
     await seedCategories(db);
+  });
+}
+
+/**
+ * Replaces every table with the given data in one transaction, so a failed
+ * restore leaves the previous data untouched. Parents are inserted before
+ * the rows that reference them.
+ */
+export async function replaceAll(db: SQLiteDatabase, data: BackupData): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    await db.execAsync(`
+      DELETE FROM transactions;
+      DELETE FROM budgets;
+      DELETE FROM rules;
+      DELETE FROM recurring;
+      DELETE FROM debts;
+      DELETE FROM categories;
+      DELETE FROM settings;
+    `);
+    for (const c of data.categories) await upsertCategory(db, c);
+    for (const d of data.debts) await upsertDebt(db, d);
+    for (const r of data.recurring) await upsertRecurring(db, r);
+    const stmt = await db.prepareAsync(`INSERT INTO transactions (${TX_COLUMNS}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`);
+    try {
+      for (const t of data.transactions) await stmt.executeAsync(txParams(t));
+    } finally {
+      await stmt.finalizeAsync();
+    }
+    for (const b of data.budgets) await setBudget(db, b);
+    for (const r of data.rules) await upsertRule(db, r);
+    for (const [key, value] of Object.entries(data.settings)) await setSetting(db, key, value);
   });
 }

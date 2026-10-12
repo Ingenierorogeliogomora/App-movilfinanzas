@@ -17,10 +17,11 @@
 3. **Datos que NO recopilamos.** No pedimos ni guardamos contraseñas bancarias, números de tarjeta completos, ubicación, contactos ni identificadores publicitarios. No usamos rastreadores de publicidad ni vendemos datos.
 4. **Compartir.** Solo sale información del dispositivo cuando tú decides exportarla (por ejemplo, "Exportar mis datos"), usando la hoja de compartir del sistema hacia el destino que elijas.
 5. **Copias de seguridad del sistema.** Si tienes activados los respaldos de iCloud o Google, el sistema operativo puede incluir los datos de la app en esos respaldos, bajo las políticas de Apple o Google.
-6. **Borrar tus datos.** Puedes borrarlo todo en Ajustes → "Borrar todos mis datos", o desinstalando la app.
-7. **Menores.** La app no está dirigida a menores de 13 años.
-8. **Cambios.** Si en el futuro agregamos funciones que recopilen datos (por ejemplo, suscripciones o sincronización), actualizaremos esta política y te lo informaremos dentro de la app antes de recopilar cualquier dato.
-9. **Contacto.** [CORREO]
+6. **Recordatorios, bloqueo y respaldos.** Los recordatorios son notificaciones locales que el teléfono programa a partir de tus datos; no pasan por ningún servidor. El bloqueo con Face ID, huella o código lo realiza el sistema operativo: la app solo recibe "aprobado" o "rechazado" y nunca accede a tus datos biométricos. Los archivos de respaldo se crean únicamente cuando tú lo pides, contienen tu información sin cifrar y quedan bajo tu control en el destino que elijas.
+7. **Borrar tus datos.** Puedes borrarlo todo en Ajustes → "Borrar todos mis datos", o desinstalando la app.
+8. **Menores.** La app no está dirigida a menores de 13 años.
+9. **Cambios.** Si en el futuro agregamos funciones que recopilen datos (por ejemplo, suscripciones o sincronización), actualizaremos esta política y te lo informaremos dentro de la app antes de recopilar cualquier dato.
+10. **Contacto.** [CORREO]
 
 ## English
 
@@ -31,7 +32,8 @@
 3. **Data we do NOT collect.** We never ask for or store bank passwords, full card numbers, location, contacts or advertising identifiers. We use no advertising trackers and we do not sell data.
 4. **Sharing.** Information only leaves your device when you choose to export it (e.g. "Export my data") through the system share sheet, to the destination you pick.
 5. **System backups.** If iCloud or Google backups are enabled, the operating system may include the app's data in those backups, under Apple's or Google's policies.
-6. **Deleting your data.** You can delete everything in Settings → "Delete all my data", or by uninstalling the app.
-7. **Children.** The app is not directed to children under 13.
-8. **Changes.** If we add features that collect data in the future (e.g. subscriptions or sync), we will update this policy and tell you in the app before any data is collected.
-9. **Contact.** [EMAIL]
+6. **Reminders, app lock and backups.** Reminders are local notifications scheduled by the phone from your data; they never go through a server. Face ID, fingerprint or passcode checks are done by the operating system: the app only learns "approved" or "denied" and never accesses biometric data. Backup files are created only when you ask, contain your information unencrypted and stay under your control wherever you save them.
+7. **Deleting your data.** You can delete everything in Settings → "Delete all my data", or by uninstalling the app.
+8. **Children.** The app is not directed to children under 13.
+9. **Changes.** If we add features that collect data in the future (e.g. subscriptions or sync), we will update this policy and tell you in the app before any data is collected.
+10. **Contact.** [EMAIL]

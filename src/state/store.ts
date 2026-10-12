@@ -2,6 +2,7 @@ import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { create } from 'zustand';
 
+import type { BackupData } from '@/core/backup';
 import { DEBT_PAYMENT_CATEGORY_KEY } from '@/core/categories';
 import { ruleFromDescription } from '@/core/categorize';
 import { todayISO } from '@/core/dates';
@@ -32,6 +33,16 @@ export interface Settings {
   /** Money set aside for emergencies (cents). */
   emergencyFund: number;
   planDone: Partial<Record<PlanStepKey, boolean>>;
+  /** Local notifications before bills and debt due dates. */
+  remindersEnabled: boolean;
+  /** 0 = on the due date. */
+  reminderDaysBefore: number;
+  /** Local hour (0-23) when reminders fire. */
+  reminderHour: number;
+  /** Require Face ID / fingerprint / device passcode to open the app. */
+  appLock: boolean;
+  /** ISO timestamp of the last backup file created. */
+  lastBackupAt: string | null;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -42,19 +53,41 @@ export const DEFAULT_SETTINGS: Settings = {
   extraPayment: 0,
   emergencyFund: 0,
   planDone: {},
+  remindersEnabled: false,
+  reminderDaysBefore: 1,
+  reminderHour: 9,
+  appLock: false,
+  lastBackupAt: null,
 };
+
+/** Values must have the default's type (settings can come from a restored backup). */
+function validSetting(key: keyof Settings, value: unknown): boolean {
+  const fallback = DEFAULT_SETTINGS[key];
+  if (key === 'lastBackupAt') return value === null || typeof value === 'string';
+  if (key === 'planDone') return typeof value === 'object' && value !== null && !Array.isArray(value);
+  if (key === 'reminderHour') return Number.isInteger(value) && (value as number) >= 0 && (value as number) <= 23;
+  if (key === 'reminderDaysBefore') return Number.isInteger(value) && (value as number) >= 0 && (value as number) <= 14;
+  if (typeof fallback === 'number') return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+  return typeof value === typeof fallback;
+}
 
 function parseSettings(raw: Record<string, string>): Settings {
   const out: Settings = { ...DEFAULT_SETTINGS, planDone: {} };
   for (const key of Object.keys(DEFAULT_SETTINGS) as (keyof Settings)[]) {
     if (raw[key] === undefined) continue;
     try {
-      (out as unknown as Record<string, unknown>)[key] = JSON.parse(raw[key]);
+      const value: unknown = JSON.parse(raw[key]);
+      if (validSetting(key, value)) (out as unknown as Record<string, unknown>)[key] = value;
     } catch {
       // Ignore corrupted values and keep the default.
     }
   }
   return out;
+}
+
+/** Settings as raw database rows (JSON-encoded values), e.g. for a backup. */
+export function serializeSettings(settings: Settings): Record<string, string> {
+  return Object.fromEntries(Object.entries(settings).map(([k, v]) => [k, JSON.stringify(v)]));
 }
 
 export type NewTransaction = Omit<Transaction, 'id' | 'createdAt' | 'importHash' | 'debtId' | 'recurringId' | 'note'> &
@@ -98,6 +131,11 @@ interface AppState {
 
   updateSettings: (patch: Partial<Settings>) => Promise<void>;
   wipeAll: () => Promise<void>;
+
+  /** Everything needed to rebuild the app on another phone. */
+  backupData: () => BackupData;
+  /** Replaces all data with a validated backup. Keeps this device's app-lock setting. */
+  restoreBackup: (data: BackupData) => Promise<void>;
 }
 
 const nowIso = () => new Date().toISOString();
@@ -340,6 +378,20 @@ export const useStore = create<AppState>((set, get) => {
 
     wipeAll: async () => {
       await repo.wipeAll(db());
+      await get().reload();
+    },
+
+    backupData: () => {
+      const { categories, transactions, debts, recurring, budgets, rules, settings } = get();
+      return { categories, transactions, debts, recurring, budgets, rules, settings: serializeSettings(settings) };
+    },
+
+    restoreBackup: async (data) => {
+      const { appLock } = get().settings;
+      await repo.replaceAll(db(), {
+        ...data,
+        settings: { ...data.settings, appLock: JSON.stringify(appLock), onboarded: 'true' },
+      });
       await get().reload();
     },
   };
