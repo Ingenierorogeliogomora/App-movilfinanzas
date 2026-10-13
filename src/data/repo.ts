@@ -261,6 +261,25 @@ export async function setSetting(db: SQLiteDatabase, key: string, value: string)
   await db.runAsync('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', [key, value]);
 }
 
+const REMINDER_LOG_KEY = 'reminderLog';
+
+/** Which reminders were scheduled and when (device-only, never in backups). */
+export async function getReminderLog(db: SQLiteDatabase): Promise<Record<string, number>> {
+  const row = await db.getFirstAsync<Row>('SELECT value FROM settings WHERE key = ?', [REMINDER_LOG_KEY]);
+  if (!row) return {};
+  try {
+    const parsed: unknown = JSON.parse(String(row.value));
+    if (typeof parsed !== 'object' || parsed === null) return {};
+    return Object.fromEntries(Object.entries(parsed).filter(([, v]) => typeof v === 'number')) as Record<string, number>;
+  } catch {
+    return {};
+  }
+}
+
+export async function setReminderLog(db: SQLiteDatabase, log: Record<string, number>): Promise<void> {
+  await setSetting(db, REMINDER_LOG_KEY, JSON.stringify(log));
+}
+
 export async function wipeAll(db: SQLiteDatabase): Promise<void> {
   await db.withTransactionAsync(async () => {
     await db.execAsync(`

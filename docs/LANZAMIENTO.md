@@ -136,5 +136,6 @@ npx eas-cli@latest update --branch production --message "Corrige X"
 - [ ] Probar en dispositivos reales con CSV de tus propios bancos (iPhone y Android), incluyendo la importación desde la app Archivos/Drive.
 - [x] Respaldo y restauración manual (v1.1). Pendiente: cifrado con contraseña y respaldo automático.
 - [ ] Probar en dispositivo real: recordatorios (permiso de notificaciones en iOS y Android 13+), Face ID / huella, y respaldo → restaurar en otro teléfono.
-- [ ] Nota técnica: el plugin de `expo-notifications` agrega el permiso de push (`aps-environment`) en iOS; EAS lo configura automáticamente al firmar. Para Android, el ícono de notificación usa `assets/android-icon-monochrome.png` (debe ser blanco sobre transparente en el ícono final).
+- [ ] Nota técnica: el plugin de `expo-notifications` agrega el permiso de push (`aps-environment`) en iOS; EAS lo configura automáticamente al firmar. Para Android, el ícono de notificación es `assets/notification-icon.png` (96×96, blanco sobre transparente); hoy usa el símbolo provisional de Expo: reemplázalo con el de tu marca.
+- [ ] `expo-screen-capture` (usado para ocultar la app en el selector de apps cuando el bloqueo está activo) declara permisos de fotos/almacenamiento para detectar capturas; Salda no los usa y están bloqueados en `android.blockedPermissions` de `app.json`. Verifica en Play Console que el APK final no los pida.
 - [ ] Revisión legal del aviso y la política de privacidad.

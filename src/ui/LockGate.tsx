@@ -1,9 +1,10 @@
-import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, StyleSheet, View } from 'react-native';
+import { AppState, Platform, StyleSheet, View } from 'react-native';
+import { FullWindowOverlay } from 'react-native-screens';
 
-import { authenticate, canUseDeviceLock, lockSupported } from '@/data/deviceLock';
+import { authenticate, canUseDeviceLock, lockState, lockSupported, setAppSwitcherProtection } from '@/data/deviceLock';
 import { useI18n } from '@/i18n';
+import { useLockStatus } from '@/state/lock';
 import { useStore } from '@/state/store';
 import { spacing, useTheme } from '@/theme';
 
@@ -14,18 +15,31 @@ const GRACE_MS = 60_000;
 
 /**
  * Covers the app until the person unlocks it with Face ID / fingerprint /
- * passcode. Also hides balances while the app is in the background so they do
- * not show in the app switcher.
+ * passcode. The app-switcher preview is hidden natively while the lock is on.
  */
 export function LockGate() {
   const c = useTheme();
   const { t } = useI18n();
-  const appLock = useStore((s) => s.settings.appLock);
+  const appLock = useStore((s) => s.settings.appLock) && lockSupported;
   // Locked on cold start when the setting is on (the store is loaded before this mounts).
-  const [locked, setLocked] = useState(appLock && lockSupported);
-  const [covered, setCovered] = useState(false);
+  const [locked, setLocked] = useState(appLock);
+  const lockedRef = useRef(locked);
   const backgroundAt = useRef<number | null>(null);
   const authenticating = useRef(false);
+  const engaged = appLock && locked;
+
+  useEffect(() => {
+    lockedRef.current = locked;
+  }, [locked]);
+
+  useEffect(() => {
+    lockState.engaged = engaged;
+    useLockStatus.setState({ locked: engaged });
+  }, [engaged]);
+
+  useEffect(() => {
+    if (lockSupported) void setAppSwitcherProtection(appLock);
+  }, [appLock]);
 
   const unlock = useCallback(async () => {
     if (authenticating.current) return;
@@ -42,52 +56,55 @@ export function LockGate() {
   }, [t]);
 
   useEffect(() => {
-    if (!appLock || !lockSupported) return;
+    if (!appLock) return;
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'background') {
-        backgroundAt.current = Date.now();
-        setCovered(true);
-      } else if (state === 'inactive') {
-        // iOS also goes "inactive" while showing the Face ID prompt.
-        if (!authenticating.current) setCovered(true);
+        // The Android passcode screen and the file pickers/share sheets we open
+        // also send the app to the background; those are not "leaving".
+        if (!authenticating.current && lockState.suspended === 0) backgroundAt.current = Date.now();
       } else if (state === 'active') {
-        setCovered(false);
         const away = backgroundAt.current;
         backgroundAt.current = null;
-        if (away !== null && Date.now() - away > GRACE_MS) {
-          // Close open forms so nothing is visible above the lock screen.
-          if (router.canDismiss()) router.dismissAll();
+        if (away === null) return;
+        const now = Date.now();
+        // A clock moved backwards counts as expired, so changing the time cannot skip the lock.
+        const expired = now - away > GRACE_MS || now < away;
+        if (expired || lockedRef.current) {
           setLocked(true);
+          void unlock();
         }
       }
     });
     return () => sub.remove();
-  }, [appLock]);
+  }, [appLock, unlock]);
 
-  // Ask right away when the lock appears.
+  // Ask right away when the lock appears (cold start).
   useEffect(() => {
-    if (appLock && locked && AppState.currentState === 'active') void unlock();
-  }, [appLock, locked, unlock]);
+    if (engaged && AppState.currentState === 'active') void unlock();
+  }, [engaged, unlock]);
 
-  if (!appLock || !lockSupported || (!locked && !covered)) return null;
+  if (!engaged) return null;
 
-  return (
+  const screen = (
     <View style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: c.bg }]} accessibilityViewIsModal>
       <View style={[styles.badge, { backgroundColor: c.primary }]}>
         <Icon name="lock-closed" size={36} color={c.onPrimary} />
       </View>
-      {locked ? (
-        <>
-          <Txt variant="title" center>
-            {t('lock.title')}
-          </Txt>
-          <Txt muted center>
-            {t('lock.body')}
-          </Txt>
-          <Button title={t('lock.unlock')} icon="finger-print" onPress={() => void unlock()} style={{ alignSelf: 'stretch' }} />
-        </>
-      ) : null}
+      <Txt variant="title" center>
+        {t('lock.title')}
+      </Txt>
+      <Txt muted center>
+        {t('lock.body')}
+      </Txt>
+      <Button title={t('lock.unlock')} icon="finger-print" onPress={() => void unlock()} style={{ alignSelf: 'stretch' }} />
     </View>
+  );
+  // On iOS, modal screens are presented above the app's root view; a separate
+  // full-window overlay is the only way to stay on top of them.
+  return Platform.OS === 'ios' ? (
+    <FullWindowOverlay unstable_accessibilityContainerViewIsModal>{screen}</FullWindowOverlay>
+  ) : (
+    screen
   );
 }
 

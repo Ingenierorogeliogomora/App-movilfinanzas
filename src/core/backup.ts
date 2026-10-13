@@ -5,7 +5,7 @@
 // (unknown enums, bad dates, negative amounts and dangling references are
 // fixed or dropped) before anything touches the database.
 
-import { isValidISODate } from './dates';
+import { isValidISODate, localDateOf } from './dates';
 import {
   DEBT_KINDS,
   FREQUENCIES,
@@ -21,8 +21,12 @@ import {
 export const BACKUP_FORMAT = 'salda-backup';
 export const BACKUP_VERSION = 1;
 
-/** Settings that belong to a device, not to the person's data. */
-export const DEVICE_ONLY_SETTINGS = ['appLock'];
+/**
+ * Settings that belong to a device, not to the person's data: the app lock
+ * depends on this phone's biometrics, and reminders need this phone's
+ * notification permission.
+ */
+export const DEVICE_ONLY_SETTINGS = ['appLock', 'remindersEnabled'];
 
 export interface BackupData {
   categories: Category[];
@@ -60,6 +64,8 @@ export type ParseResult =
 
 export function createBackup(data: BackupData, meta: { exportedAt: string; appVersion: string }): BackupFile {
   const settings = Object.fromEntries(Object.entries(data.settings).filter(([k]) => !DEVICE_ONLY_SETTINGS.includes(k)));
+  // Restoring this file means this backup existed.
+  settings.lastBackupAt = JSON.stringify(meta.exportedAt);
   return { format: BACKUP_FORMAT, version: BACKUP_VERSION, exportedAt: meta.exportedAt, appVersion: meta.appVersion, data: { ...data, settings } };
 }
 
@@ -68,7 +74,7 @@ export function serializeBackup(backup: BackupFile): string {
 }
 
 export function backupFileName(exportedAt: string): string {
-  return `salda-backup-${exportedAt.slice(0, 10)}.json`;
+  return `salda-backup-${localDateOf(exportedAt)}.json`;
 }
 
 export function countBackup(data: BackupData): BackupCounts {
@@ -246,7 +252,10 @@ export function parseBackup(text: string): ParseResult {
   const recs = list(raw.recurring, recurring, (r) => r.id);
   const txs = list(raw.transactions, transaction, (t) => t.id);
   const buds = list(raw.budgets, budget, (b) => b.categoryId);
-  const rules = list(raw.rules, rule, (r) => r.pattern);
+  // Rule ids and patterns are both unique in the database.
+  const rulesById = list(raw.rules, rule, (r) => r.id);
+  const rules = { items: uniqueBy(rulesById.items, (r) => r.pattern), dropped: 0 };
+  rules.dropped = rulesById.dropped + (rulesById.items.length - rules.items.length);
 
   // Repair references so foreign keys always point at something that exists.
   const catIds = new Set(cats.items.map((c) => c.id));

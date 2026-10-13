@@ -55,6 +55,12 @@ export async function requestReminderPermission(channelName: string): Promise<bo
   return allowed(await Notifications.requestPermissionsAsync());
 }
 
+/** Whether reminders can currently be shown (the person may revoke it in OS settings). */
+export async function remindersPermitted(): Promise<boolean> {
+  if (!remindersSupported) return false;
+  return allowed(await Notifications.getPermissionsAsync());
+}
+
 export async function cancelAllReminders(): Promise<void> {
   if (!remindersSupported) return;
   await Notifications.cancelAllScheduledNotificationsAsync();
@@ -62,24 +68,28 @@ export async function cancelAllReminders(): Promise<void> {
 
 /**
  * Replaces every scheduled reminder with `items`. Salda schedules nothing
- * else, so clearing all pending notifications is safe. Returns how many
- * were scheduled.
+ * else, so clearing all pending notifications is safe. Returns what was
+ * actually scheduled (nothing when permission is missing).
  */
-export async function replaceReminders(items: ScheduledReminder[], channelName: string): Promise<number> {
-  if (!remindersSupported) return 0;
+export async function replaceReminders(
+  items: ScheduledReminder[],
+  channelName: string,
+): Promise<{ id: string; at: number }[]> {
+  if (!remindersSupported) return [];
   await Notifications.cancelAllScheduledNotificationsAsync();
-  if (!allowed(await Notifications.getPermissionsAsync())) return 0;
+  if (!allowed(await Notifications.getPermissionsAsync())) return [];
   await ensureChannel(channelName);
-  let scheduled = 0;
+  const scheduled: { id: string; at: number }[] = [];
   const now = Date.now();
   for (const item of items) {
-    if (item.date.getTime() <= now) continue;
+    const at = item.date.getTime();
+    if (at <= now) continue;
     await Notifications.scheduleNotificationAsync({
       identifier: item.id,
       content: { title: item.title, body: item.body, data: { url: item.url }, sound: 'default' },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: item.date, channelId: CHANNEL_ID },
     });
-    scheduled++;
+    scheduled.push({ id: item.id, at });
   }
   return scheduled;
 }

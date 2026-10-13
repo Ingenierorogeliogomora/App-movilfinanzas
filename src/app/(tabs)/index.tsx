@@ -4,7 +4,7 @@ import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { budgetStatuses, categorySpikes } from '@/core/analytics';
-import { addMonths, currentMonthKey, daysBetween, formatDate, formatMonthLabel, todayISO } from '@/core/dates';
+import { addMonths, currentMonthKey, daysBetween, formatDate, formatMonthLabel, localDateOf, todayISO } from '@/core/dates';
 import { debtTotals, healthScore } from '@/core/health';
 import { buildInsights } from '@/core/insights';
 import { upcomingOccurrences } from '@/core/recurring';
@@ -66,7 +66,7 @@ export default function Home() {
         spikes: categorySpikes(summary, trend.slice(0, -1)),
         uncategorizedCount,
         transactionCount: transactions.length,
-        daysSinceBackup: lastBackupAt ? daysBetween(lastBackupAt.slice(0, 10), today) : null,
+        daysSinceBackup: lastBackupAt ? daysBetween(localDateOf(lastBackupAt), today) : null,
       }),
     [summary, debts, budgetList, trend, uncategorizedCount, transactions.length, lastBackupAt, today],
   );

@@ -1,16 +1,16 @@
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Linking } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Linking, Platform } from 'react-native';
 
-import { todayISO } from '@/core/dates';
-import { buildReminders } from '@/core/reminders';
-import { authenticate, canUseDeviceLock, lockSupported } from '@/data/deviceLock';
+import { authenticate, canUseDeviceLock, lockSupported, withLockSuspended } from '@/data/deviceLock';
+import { cleanupTempFiles } from '@/data/files';
 import { remindersSupported, requestReminderPermission } from '@/data/notifications';
 import { useI18n } from '@/i18n';
 import { CURRENCIES } from '@/i18n/currencies';
+import { useReminderStatus } from '@/state/reminderStatus';
 import { useStore } from '@/state/store';
-import { spacing } from '@/theme';
+import { spacing, useTheme } from '@/theme';
 import { confirmAsync } from '@/ui/dialogs';
 import { SwitchRow } from '@/ui/fields';
 import { Button, Card, Chip, ChipGroup, Divider, Row, Screen, Segmented, Txt } from '@/ui/primitives';
@@ -19,10 +19,9 @@ const DAYS_BEFORE = [0, 1, 3, 7];
 const HOURS = [7, 9, 12, 18, 20];
 
 export default function Settings() {
+  const c = useTheme();
   const { t, locale } = useI18n();
   const settings = useStore((s) => s.settings);
-  const recurring = useStore((s) => s.recurring);
-  const debts = useStore((s) => s.debts);
   const updateSettings = useStore((s) => s.updateSettings);
   const wipeAll = useStore((s) => s.wipeAll);
   const [lockAvailable, setLockAvailable] = useState<boolean | null>(null);
@@ -35,26 +34,21 @@ export default function Settings() {
     };
   }, []);
 
-  const upcomingCount = useMemo(
-    () =>
-      settings.remindersEnabled
-        ? buildReminders(recurring, debts, {
-            today: todayISO(),
-            currentHour: new Date().getHours(),
-            daysBefore: settings.reminderDaysBefore,
-            hour: settings.reminderHour,
-          }).length
-        : 0,
-    [recurring, debts, settings.remindersEnabled, settings.reminderDaysBefore, settings.reminderHour],
-  );
+  // What the last sync really scheduled on this phone (not just what could be).
+  const reminderStatus = useReminderStatus();
 
   const toggleLock = async (on: boolean) => {
-    if (!on) {
+    // Turning it off without any lock left on the phone must still work,
+    // otherwise the switch could never be turned off again.
+    if (!on && !(await canUseDeviceLock())) {
       await updateSettings({ appLock: false });
       return;
     }
-    // Confirm the person can actually unlock before turning it on.
-    if (await authenticate(t('lock.enablePrompt'), t('common.cancel'))) await updateSettings({ appLock: true });
+    // Turning it on confirms the person can unlock; turning it off needs the
+    // owner too, so someone holding the unlocked phone cannot just disable it.
+    if (await authenticate(on ? t('lock.enablePrompt') : t('lock.prompt'), t('common.cancel'))) {
+      await updateSettings({ appLock: on });
+    }
   };
 
   const toggleReminders = async (on: boolean) => {
@@ -69,10 +63,10 @@ export default function Settings() {
     const open = await confirmAsync({
       title: t('settings.reminders'),
       message: t('settings.remindersDenied'),
-      confirmText: t('settings.title'),
+      confirmText: t('settings.openPhoneSettings'),
       cancelText: t('common.close'),
     });
-    if (open) void Linking.openSettings();
+    if (open) void withLockSuspended(() => Linking.openSettings());
   };
 
   const confirmWipe = async () => {
@@ -83,7 +77,9 @@ export default function Settings() {
       cancelText: t('common.cancel'),
       destructive: true,
     });
-    if (ok) await wipeAll();
+    if (!ok) return;
+    await wipeAll();
+    cleanupTempFiles();
   };
 
   const hourLabel = (h: number) => {
@@ -147,7 +143,21 @@ export default function Settings() {
                   value={String(settings.reminderHour)}
                   onChange={(v) => void updateSettings({ reminderHour: Number(v) })}
                 />
-                <Txt variant="caption">{t('settings.reminderCount', { count: upcomingCount })}</Txt>
+                {reminderStatus.permitted === false ? (
+                  <>
+                    <Txt variant="caption" color={c.danger}>
+                      {t('settings.remindersDenied')}
+                    </Txt>
+                    <Button
+                      small
+                      variant="secondary"
+                      title={t('settings.openPhoneSettings')}
+                      onPress={() => void withLockSuspended(() => Linking.openSettings())}
+                    />
+                  </>
+                ) : (
+                  <Txt variant="caption">{t('settings.reminderCount', { count: reminderStatus.scheduled })}</Txt>
+                )}
               </>
             ) : null}
           </>
@@ -161,7 +171,13 @@ export default function Settings() {
         {lockSupported ? (
           <SwitchRow
             label={t('settings.appLock')}
-            hint={lockAvailable === false ? t('settings.appLockUnavailable') : t('settings.appLockHint')}
+            hint={
+              lockAvailable === false
+                ? t('settings.appLockUnavailable')
+                : Platform.OS === 'android'
+                  ? t('settings.appLockHintAndroid')
+                  : t('settings.appLockHint')
+            }
             value={settings.appLock}
             onValueChange={(v) => void toggleLock(v)}
           />

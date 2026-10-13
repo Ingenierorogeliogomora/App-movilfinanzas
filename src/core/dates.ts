@@ -7,6 +7,12 @@ export function toISODate(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+/** Local calendar day of a timestamp ("2026-10-12T03:00:00Z" is Oct 11 in the US). */
+export function localDateOf(timestamp: string): string {
+  const d = new Date(timestamp);
+  return Number.isNaN(d.getTime()) ? timestamp.slice(0, 10) : toISODate(d);
+}
+
 export function todayISO(): string {
   return toISODate(new Date());
 }

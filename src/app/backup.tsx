@@ -1,9 +1,10 @@
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { useState } from 'react';
+import { Platform } from 'react-native';
 
 import { backupFileName, createBackup, parseBackup, serializeBackup } from '@/core/backup';
-import { formatDate } from '@/core/dates';
+import { formatDate, localDateOf } from '@/core/dates';
 import { pickTextFile, saveTextFile } from '@/data/files';
 import { useI18n, type TKey } from '@/i18n';
 import { useStore } from '@/state/store';
@@ -26,11 +27,22 @@ export default function Backup() {
       const exportedAt = new Date().toISOString();
       const file = createBackup(backupData(), { exportedAt, appVersion: Constants.expoConfig?.version ?? '' });
       const shared = await saveTextFile(backupFileName(exportedAt), serializeBackup(file), 'application/json', 'public.json');
-      if (shared) {
-        await updateSettings({ lastBackupAt: exportedAt });
-        notify(t('backup.created'));
-      } else {
+      if (!shared) {
         notify(t('common.error'));
+        return;
+      }
+      // The share sheet does not say whether the file was saved, so ask.
+      const saved =
+        Platform.OS === 'web' ||
+        (await confirmAsync({
+          title: t('backup.savedQuestion'),
+          message: t('backup.savedHint'),
+          confirmText: t('backup.savedYes'),
+          cancelText: t('backup.savedNo'),
+        }));
+      if (saved) {
+        await updateSettings({ lastBackupAt: exportedAt });
+        if (Platform.OS === 'web') notify(t('backup.created'));
       }
     } catch {
       notify(t('common.error'));
@@ -49,7 +61,7 @@ export default function Backup() {
         notify(t(`backup.error.${parsed.error}` as TKey));
         return;
       }
-      const date = parsed.backup.exportedAt ? formatDate(parsed.backup.exportedAt.slice(0, 10), locale) : '—';
+      const date = parsed.backup.exportedAt ? formatDate(localDateOf(parsed.backup.exportedAt), locale) : '—';
       const ok = await confirmAsync({
         title: t('backup.restoreTitle'),
         message: t('backup.restoreBody', {
@@ -72,7 +84,9 @@ export default function Backup() {
         return;
       }
       notify(t('backup.restored'), parsed.dropped ? t('backup.dropped', { count: parsed.dropped }) : undefined);
-      router.replace('/');
+      // Back to Home without leaving a second copy of the tabs in the history.
+      if (router.canDismiss()) router.dismissAll();
+      router.navigate('/');
     } catch {
       // Reading the picked file failed.
       notify(t('backup.error.invalid_json'));
@@ -88,7 +102,7 @@ export default function Backup() {
         <Row gap={10}>
           <Icon name="time-outline" color={c.primary} />
           <Txt style={{ flex: 1 }}>
-            {lastBackupAt ? t('backup.last', { date: formatDate(lastBackupAt.slice(0, 10), locale) }) : t('backup.never')}
+            {lastBackupAt ? t('backup.last', { date: formatDate(localDateOf(lastBackupAt), locale) }) : t('backup.never')}
           </Txt>
         </Row>
         <Button title={t('backup.create')} icon="download-outline" onPress={() => void create()} loading={busy === 'create'} disabled={busy !== null} />

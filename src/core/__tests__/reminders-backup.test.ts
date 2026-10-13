@@ -11,7 +11,7 @@ import {
 import { DEFAULT_CATEGORIES } from '../categories';
 import { buildInsights } from '../insights';
 import { summarize, indexCategories } from '../analytics';
-import { buildReminders, nextDueDate } from '../reminders';
+import { buildReminders, deliveredIds, nextDueDate, nextReminderLog, type ReminderLog } from '../reminders';
 import type { Category, Debt, Recurring, Transaction } from '../types';
 
 const rent: Recurring = {
@@ -72,12 +72,25 @@ describe('buildReminders', () => {
     expect(items[0]).toMatchObject({ dueDate: '2026-10-13', fireDate: '2026-10-12', daysBefore: 1 });
   });
 
-  it('never schedules in the past', () => {
+  it('never schedules in the past, but moves to the next free slot before the due date', () => {
     const late = { ...opts, currentHour: 10 };
     const items = buildReminders([{ ...rent, nextDate: '2026-10-13' }], [], late);
-    // Fire date would be today at 9:00, which already passed.
-    expect(items.find((i) => i.dueDate === '2026-10-13')).toBeUndefined();
+    // Today 9:00 already passed, so the reminder moves to the due day itself.
+    expect(items[0]).toMatchObject({ dueDate: '2026-10-13', fireDate: '2026-10-13', daysBefore: 0 });
     expect(items.every((i) => i.fireDate > '2026-10-12' || late.currentHour < i.hour)).toBe(true);
+  });
+
+  it('a longer lead time never gives less coverage than "same day"', () => {
+    const due = { ...rent, nextDate: '2026-10-14' };
+    for (const daysBefore of [0, 1, 3, 7]) {
+      const items = buildReminders([due], [], { ...opts, currentHour: 10, daysBefore });
+      expect(items.some((i) => i.dueDate === '2026-10-14')).toBe(true);
+    }
+  });
+
+  it('skips a reminder for a due date that already passed today', () => {
+    const items = buildReminders([{ ...rent, nextDate: '2026-10-12' }], [], { ...opts, currentHour: 10, daysBefore: 0 });
+    expect(items.find((i) => i.dueDate === '2026-10-12')).toBeUndefined();
   });
 
   it('skips overdue occurrences, income, paused bills and paid-off debts', () => {
@@ -91,6 +104,49 @@ describe('buildReminders', () => {
       opts,
     );
     expect(items.map((i) => i.id)).toEqual(['bill:rent:2026-11-01', 'bill:rent:2026-12-01']);
+  });
+
+  it('does not remind debts that have no minimum payment', () => {
+    expect(buildReminders([], [{ ...visa, minPayment: 0 }], opts)).toEqual([]);
+  });
+
+  it('never repeats a reminder that already fired, opening the app every day', () => {
+    // Rent due Oct 15, remind 7 days before at 20:00; the person opens the app
+    // every morning at 10:00 and each open reschedules everything.
+    const settings = { daysBefore: 7, hour: 20, currentHour: 10 };
+    let log: ReminderLog = {};
+    const fired: string[] = [];
+    for (let day = 8; day <= 15; day++) {
+      const today = `2026-10-${String(day).padStart(2, '0')}`;
+      const morning = Date.parse(`${today}T10:00:00`);
+      const items = buildReminders([{ ...rent, nextDate: '2026-10-15' }], [], {
+        ...settings,
+        today,
+        delivered: deliveredIds(log, morning),
+      }).filter((i) => i.dueDate === '2026-10-15');
+      const scheduled = items.map((i) => ({ id: i.id, at: Date.parse(`${i.fireDate}T${String(i.hour).padStart(2, '0')}:00:00`) }));
+      log = nextReminderLog(log, scheduled, morning, today);
+      // What actually fires before the next morning.
+      const nextMorning = morning + 24 * 3_600_000;
+      fired.push(...scheduled.filter((x) => x.at > morning && x.at <= nextMorning).map((x) => x.id));
+    }
+    expect(fired).toEqual(['bill:rent:2026-10-15']);
+  });
+
+  it('keeps only delivered entries that still matter in the log', () => {
+    const now = Date.parse('2026-10-12T12:00:00');
+    const log = nextReminderLog(
+      {
+        'bill:a:2026-10-12': now - 1000, // delivered, due today: keep
+        'bill:b:2026-10-01': now - 1000, // delivered, long past due: drop
+        'bill:c:2026-10-20': now + 1000, // cancelled before firing: drop
+      },
+      [{ id: 'bill:d:2026-10-20', at: now + 5000 }],
+      now,
+      '2026-10-12',
+    );
+    expect(log).toEqual({ 'bill:a:2026-10-12': now - 1000, 'bill:d:2026-10-20': now + 5000 });
+    expect([...deliveredIds(log, now)]).toEqual(['bill:a:2026-10-12']);
   });
 
   it('caps the total so iOS never drops reminders silently', () => {
@@ -135,7 +191,7 @@ const data: BackupData = {
   recurring: [rent],
   budgets: [{ categoryId: 'cat_groceries', amount: 40_000 }],
   rules: [{ id: 'r1', pattern: 'zelle to juan perez', categoryId: 'cat_housing', txType: 'expense', createdAt: '2026-10-01T00:00:00.000Z' }],
-  settings: { onboarded: 'true', currency: '"USD"', appLock: 'true', extraPayment: '20000' },
+  settings: { onboarded: 'true', currency: '"USD"', appLock: 'true', remindersEnabled: 'true', extraPayment: '20000' },
 };
 
 describe('backup', () => {
@@ -155,14 +211,34 @@ describe('backup', () => {
     expect(result.dropped).toBe(0);
   });
 
-  it('leaves device-only settings (app lock) out of the file', () => {
+  it('leaves device-only settings (app lock, reminders) out and records the backup date', () => {
     expect(file.data.settings.appLock).toBeUndefined();
+    expect(file.data.settings.remindersEnabled).toBeUndefined();
     const result = parseBackup(serializeBackup(file));
-    expect(result.ok && result.backup.data.settings).toEqual({ onboarded: 'true', currency: '"USD"', extraPayment: '20000' });
+    expect(result.ok && result.backup.data.settings).toEqual({
+      onboarded: 'true',
+      currency: '"USD"',
+      extraPayment: '20000',
+      lastBackupAt: '"2026-10-12T15:00:00.000Z"',
+    });
   });
 
-  it('names the file by date', () => {
-    expect(backupFileName('2026-10-12T15:00:00.000Z')).toBe('salda-backup-2026-10-12.json');
+  it('names the file by the local date', () => {
+    expect(backupFileName('2026-10-12T15:00:00.000Z')).toMatch(/^salda-backup-2026-10-1[12]\.json$/);
+    const local = new Date(2026, 9, 12, 23, 30).toISOString();
+    expect(backupFileName(local)).toBe('salda-backup-2026-10-12.json');
+  });
+
+  it('drops rules with a repeated id or pattern so the restore cannot fail', () => {
+    const dup = JSON.parse(serializeBackup(file));
+    dup.data.rules = [
+      { id: 'r1', pattern: 'netflix', categoryId: 'cat_subscriptions', txType: 'expense' },
+      { id: 'r1', pattern: 'spotify', categoryId: 'cat_subscriptions', txType: 'expense' },
+      { id: 'r2', pattern: 'netflix', categoryId: 'cat_shopping', txType: 'expense' },
+    ];
+    const result = parseBackup(JSON.stringify(dup));
+    expect(result.ok && result.backup.data.rules.map((r) => r.id)).toEqual(['r1']);
+    expect(result.ok && result.dropped).toBe(2);
   });
 
   it.each([

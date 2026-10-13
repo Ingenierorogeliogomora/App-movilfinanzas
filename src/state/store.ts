@@ -134,7 +134,7 @@ interface AppState {
 
   /** Everything needed to rebuild the app on another phone. */
   backupData: () => BackupData;
-  /** Replaces all data with a validated backup. Keeps this device's app-lock setting. */
+  /** Replaces all data with a validated backup. Keeps this device's lock and reminder settings. */
   restoreBackup: (data: BackupData) => Promise<void>;
 }
 
@@ -387,10 +387,17 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     restoreBackup: async (data) => {
-      const { appLock } = get().settings;
+      // Lock and reminders depend on this phone (biometrics, notification
+      // permission), so they keep this device's values.
+      const { appLock, remindersEnabled } = get().settings;
       await repo.replaceAll(db(), {
         ...data,
-        settings: { ...data.settings, appLock: JSON.stringify(appLock), onboarded: 'true' },
+        settings: {
+          ...data.settings,
+          appLock: JSON.stringify(appLock),
+          remindersEnabled: JSON.stringify(remindersEnabled),
+          onboarded: 'true',
+        },
       });
       await get().reload();
     },

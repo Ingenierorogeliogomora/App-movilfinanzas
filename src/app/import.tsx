@@ -47,9 +47,8 @@ export default function ImportScreen() {
   const pick = async () => {
     setError(null);
     try {
-      const file = await pickTextFile('.csv,text/csv,text/plain');
+      const file = await pickTextFile('.csv,text/csv,text/plain', () => setPhase('loading'));
       if (!file) return;
-      setPhase('loading');
       const text = file.text;
       const usesMonthFirst = /-(US|PH|CA)$/.test(locale);
       const a = analyzeCSV(text, usesMonthFirst ? 'MDY' : 'DMY');

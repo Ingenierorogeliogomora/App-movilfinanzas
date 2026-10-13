@@ -1,4 +1,5 @@
 import { toCSV } from '@/core/csv';
+import { todayISO } from '@/core/dates';
 import type { Category, Debt, Transaction } from '@/core/types';
 
 import { saveTextFile } from './files';
@@ -24,6 +25,6 @@ export async function exportTransactionsCsv(
       t.debtId ? (debtNames.get(t.debtId) ?? '') : '',
     ]),
   ];
-  const name = `salda-transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+  const name = `salda-transactions-${todayISO()}.csv`;
   return saveTextFile(name, toCSV(rows), 'text/csv', 'public.comma-separated-values-text');
 }

@@ -6,8 +6,10 @@ import { useEffect, useMemo } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { DB_NAME, migrateDb } from '@/data/db';
+import { cleanupTempFiles } from '@/data/files';
 import { configureNotifications, remindersSupported } from '@/data/notifications';
 import { useI18n } from '@/i18n';
+import { useLockStatus } from '@/state/lock';
 import { useReminderSync } from '@/state/useReminderSync';
 import { useStore } from '@/state/store';
 import { useIsDark, useTheme } from '@/theme';
@@ -31,6 +33,8 @@ function Bootstrap() {
 
   useEffect(() => {
     void init(db);
+    // Leftover exports / picked files from a previous session (plain-text financial data).
+    cleanupTempFiles();
   }, [db, init]);
 
   if (!ready) {
@@ -48,6 +52,8 @@ function Navigator() {
   const dark = useIsDark();
   const { t } = useI18n();
   const onboarded = useStore((s) => s.settings.onboarded);
+  // Behind the lock screen nothing should be reachable by screen readers.
+  const locked = useLockStatus((s) => s.locked);
 
   const navTheme = useMemo(() => {
     const base = dark ? DarkTheme : DefaultTheme;
@@ -62,35 +68,41 @@ function Navigator() {
   return (
     <ThemeProvider value={navTheme}>
       <StatusBar style={dark ? 'light' : 'dark'} />
-      <Stack
-        screenOptions={{
-          headerStyle: { backgroundColor: c.bg },
-          headerTintColor: c.primary,
-          headerTitleStyle: { color: c.text },
-          headerShadowVisible: false,
-          headerBackTitle: t('common.back'),
-          contentStyle: { backgroundColor: c.bg },
-        }}
+      <View
+        style={{ flex: 1 }}
+        importantForAccessibility={locked ? 'no-hide-descendants' : 'auto'}
+        accessibilityElementsHidden={locked}
       >
-        <Stack.Protected guard={onboarded}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="transaction/[id]" options={{ ...modal, title: t('tx.new') }} />
-          <Stack.Screen name="debt/[id]" options={{ ...modal, title: t('debt.new') }} />
-          <Stack.Screen name="debt/pay" options={{ ...modal, title: t('debt.payTitle') }} />
-          <Stack.Screen name="recurring/index" options={{ title: t('rec.title') }} />
-          <Stack.Screen name="recurring/[id]" options={{ ...modal, title: t('rec.new') }} />
-          <Stack.Screen name="category/[id]" options={{ ...modal, title: t('categories.new') }} />
-          <Stack.Screen name="budgets" options={{ title: t('budget.title') }} />
-          <Stack.Screen name="plan" options={{ title: t('plan.title') }} />
-          <Stack.Screen name="import" options={{ title: t('import.title') }} />
-          <Stack.Screen name="categories" options={{ title: t('categories.title') }} />
-          <Stack.Screen name="settings" options={{ title: t('settings.title') }} />
-          <Stack.Screen name="backup" options={{ title: t('backup.title') }} />
-        </Stack.Protected>
-        <Stack.Protected guard={!onboarded}>
-          <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-        </Stack.Protected>
-      </Stack>
+        <Stack
+          screenOptions={{
+            headerStyle: { backgroundColor: c.bg },
+            headerTintColor: c.primary,
+            headerTitleStyle: { color: c.text },
+            headerShadowVisible: false,
+            headerBackTitle: t('common.back'),
+            contentStyle: { backgroundColor: c.bg },
+          }}
+        >
+          <Stack.Protected guard={onboarded}>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="transaction/[id]" options={{ ...modal, title: t('tx.new') }} />
+            <Stack.Screen name="debt/[id]" options={{ ...modal, title: t('debt.new') }} />
+            <Stack.Screen name="debt/pay" options={{ ...modal, title: t('debt.payTitle') }} />
+            <Stack.Screen name="recurring/index" options={{ title: t('rec.title') }} />
+            <Stack.Screen name="recurring/[id]" options={{ ...modal, title: t('rec.new') }} />
+            <Stack.Screen name="category/[id]" options={{ ...modal, title: t('categories.new') }} />
+            <Stack.Screen name="budgets" options={{ title: t('budget.title') }} />
+            <Stack.Screen name="plan" options={{ title: t('plan.title') }} />
+            <Stack.Screen name="import" options={{ title: t('import.title') }} />
+            <Stack.Screen name="categories" options={{ title: t('categories.title') }} />
+            <Stack.Screen name="settings" options={{ title: t('settings.title') }} />
+            <Stack.Screen name="backup" options={{ title: t('backup.title') }} />
+          </Stack.Protected>
+          <Stack.Protected guard={!onboarded}>
+            <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+          </Stack.Protected>
+        </Stack>
+      </View>
       {/* Always mounted so turning reminders off (or wiping data) cancels them. */}
       <Background />
       <LockGate />
@@ -107,8 +119,14 @@ function Background() {
 function OpenTappedReminder() {
   const response = Notifications.useLastNotificationResponse();
   useEffect(() => {
-    const url = response?.notification.request.content.data?.url;
-    if (typeof url === 'string' && (url === '/recurring' || url === '/debts')) router.push(url);
+    if (!response || response.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
+    // Handle each tap once, even if this component mounts again.
+    Notifications.clearLastNotificationResponse();
+    const url = response.notification.request.content.data?.url;
+    if (url !== '/recurring' && url !== '/debts') return;
+    // Go back to the main screens instead of stacking another copy of the tabs.
+    if (router.canDismiss()) router.dismissAll();
+    router.navigate(url);
   }, [response]);
   return null;
 }
